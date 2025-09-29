@@ -25,3 +25,6 @@ The project communicates with a **Python script running on the PC** (from a comp
 - **Protocols:** Serial (USB) or Bluetooth communication  
 
 ---
+## 📷 Preview
+
+![alt text](https://github.com/SweetSya/esp32-monitoring-pc/blob/main/preview.jpeg?raw=true)
