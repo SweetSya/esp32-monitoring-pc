@@ -8,6 +8,7 @@ TFT_eSPI tft = TFT_eSPI(); // TFT instance
 
 #define COLOR_DARK 0x0000  // Black
 #define COLOR_WHITE 0xFFFF // White
+#define BACKLIGHT_PIN 15   // D15 = GPIO15
 
 int offsetTop = 0;
 int offsetLeft = 0;
@@ -93,11 +94,11 @@ void drawInfoBox(int x, int y, float col, int height, String title, String label
   tft.drawRoundRect(x, y, BAR_W, BAR_H, 5, COLOR_DARK);
 
   if (temp <= 50)
-    tft.fillRoundRect(x + 1, y + 1, tempBar - 2, BAR_H - 2, 7, TFT_DARKCYAN);
+    tft.fillRoundRect(x + 1, y + 1, tempBar - 2, BAR_H - 2, 5, TFT_CYAN);
   else if (temp <= 85)
-    tft.fillRoundRect(x + 1, y + 1, tempBar - 2, BAR_H - 2, 7, TFT_DARKGREEN);
+    tft.fillRoundRect(x + 1, y + 1, tempBar - 2, BAR_H - 2, 5, TFT_GREENYELLOW);
   else
-    tft.fillRoundRect(x + 1, y + 1, tempBar - 2, BAR_H - 2, 7, TFT_RED);
+    tft.fillRoundRect(x + 1, y + 1, tempBar - 2, BAR_H - 2, 5, TFT_RED);
 
   tft.setCursor(x + BAR_W + 8, y + 5 + TEXT_VERTICAL_SHIFTING);
   tft.fillRect(x + BAR_W + 8, y + 5, 50, 25, COLOR_WHITE);
@@ -128,10 +129,11 @@ void clear_screen()
 void set_header(String title)
 {
   offsetTop = 0;
+  offsetLeft = 0;
   tft.fillRect(offsetLeft, offsetTop, SCREEN_HORIZONTAL_MAX, offsetTop + 30, COLOR_WHITE);
   tft.setTextColor(COLOR_DARK);
   tft.setTextSize(2);
-  tft.setCursor(offsetLeft + 5, offsetTop + 8 + TEXT_VERTICAL_SHIFTING);
+  tft.setCursor(offsetLeft + 15, offsetTop + 8 + TEXT_VERTICAL_SHIFTING);
   tft.print(title);
   offsetTop += 35;
 }
@@ -251,6 +253,12 @@ void setup()
 {
   Serial.begin(115200);
   delay(1000);
+  // Attach GPIO15 to PWM channel 1
+  ledcAttachPin(BACKLIGHT_PIN, 1);
+  // Set up PWM on channel 1: 5kHz frequency, 8-bit resolution
+  ledcSetup(1, 5000, 8);
+  // Set brightness (0 = off, 255 = full brightness)
+  ledcWrite(1, 85);
 
   tft.init();
   tft.setRotation(1); // Portrait
@@ -259,7 +267,7 @@ void setup()
   delay(2000);
   // connect_wifi();
   set_header("Ready to use..");
-  state = "sleep";
+  state = "ready";
   offsetTop += 35;
 }
 
@@ -272,20 +280,22 @@ void loop()
   waiting_serial += 1;
   if (Serial.available())
   {
-    if (state != "sleep" && gpuUsage <= 29)
-    {
-      state = "sleep";
-      clear_screen();
-      String message = "Sleep Mode..";
-      set_header(message);
-      drawIcon(SCREEN_HORIZONTAL_MAX / 2 - 130, SCREEN_VERTICAL_MAX / 2 - 80, epd_bitmap_cat_sleep, 256, 168, COLOR_WHITE);
-    }
-    if (state != "wake" && gpuUsage > 29)
+    // if (state != "sleep")
+    // {
+    //   state = "sleep";
+    //   clear_screen();
+    //   String message = "Sleep Mode..";
+    //   set_header(message);
+    //   drawIcon(SCREEN_HORIZONTAL_MAX / 2 - 130, SCREEN_VERTICAL_MAX / 2 - 80, epd_bitmap_cat_sleep, 256, 168, COLOR_WHITE);
+    //   ledcWrite(1, 85);
+    // }
+    if (state != "wake" && state == "ready")
     {
       initiate = true;
       state = "wake";
+      ledcWrite(1, 220);
       clear_screen();
-      set_header("Monitoring..");
+      set_header("Monitoring");
     }
     while (Serial.available())
     {
@@ -306,18 +316,39 @@ void loop()
     }
     waiting_serial = 0;
   }
-  if (waiting_serial > 5)
+  if (waiting_serial > 2)
   {
-    if (state != "offline")
+    int turn_off_after = 5;
+    if (waiting_serial > turn_off_after)
     {
-      clear_screen();
-      state = "offline";
-      String message = "Offline Mode..";
-      set_header(message);
+      if (state != "offline")
+      {
+        clear_screen();
+        state = "offline";
+        // String message = "Offline Mode..";
+        // set_header(message);
+        ledcWrite(1, 0);
+      }
+      if (waiting_serial > 9999)
+      {
+        waiting_serial = 10;
+      }
     }
-    if (waiting_serial > 9999)
+    else
     {
-      waiting_serial = 6;
+      // clear_screen();
+      // String message = "Offline mode in..(" + String(turn_off_after - waiting_serial) + ")";
+      // set_header(message);
+
+      if (state != "sleep")
+      {
+        state = "sleep";
+        clear_screen();
+        drawIcon(SCREEN_HORIZONTAL_MAX / 2 - 130, SCREEN_VERTICAL_MAX / 2 - 80, epd_bitmap_cat_sleep, 256, 168, COLOR_WHITE);
+        ledcWrite(1, 85);
+      }
+      String message = "Sleep mode in..(" + String(turn_off_after - waiting_serial) + ")";
+      set_header(message);
     }
   }
   delay(1000); // Smooth refresh
