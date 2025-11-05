@@ -251,6 +251,7 @@ int waiting_serial = 0;
 
 void setup()
 {
+  state = "initiating";
   Serial.begin(115200);
   delay(1000);
   // Attach GPIO15 to PWM channel 1
@@ -297,7 +298,7 @@ void loop()
       clear_screen();
       set_header("Monitoring");
     }
-    while (Serial.available())
+    while (Serial.available() && state == "wake")
     {
       char c = Serial.read();
       if (c == '\n')
@@ -351,5 +352,5 @@ void loop()
       set_header(message);
     }
   }
-  delay(1000); // Smooth refresh
+  delay(2000); // Smooth refresh
 }
