@@ -281,6 +281,10 @@ void loop()
   waiting_serial += 1;
   if (Serial.available())
   {
+    if (state != "wake")
+    {
+      state = "ready";
+    }
     // if (state != "sleep")
     // {
     //   state = "sleep";
