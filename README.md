@@ -5,6 +5,14 @@ The project communicates with a **Python script running on the PC** (from a comp
 
 ---
 
+## How to Use
+
+1. **Upload this code** into your ESP32 + TFT Display Device (You can tweaks the Screen Dimension)
+2. **Run the monitoring_module_by_sya19.exe**, and add it as a "startup" program soo you dont need to run manually everytime computer restart.
+3. **And you're done.** Feel free to update the code or reach me if you have suggestion :)
+
+---
+
 ## 🚀 Features
 
 - 📊 **Real-time monitoring** of:
@@ -19,12 +27,13 @@ The project communicates with a **Python script running on the PC** (from a comp
 
 ## 🛠️ Tech Stack
 
-- **Hardware:** ESP32 Development Board + TFT Display (ILI9341 / ILI9488)  
-- **ESP32 Firmware:** Arduino (C++) + [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) library  
-- **PC Side:** Python 3 script (separate repo) that collects system metrics using `psutil` / OpenHardwareMonitor and sends structured data  
-- **Protocols:** Serial (USB) or Bluetooth communication  
+- **Hardware:** ESP32 Development Board + TFT Display (ILI9341 / ILI9488)
+- **ESP32 Firmware:** Arduino (C++) + [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) library
+- **PC Side:** Python 3 script (separate repo) that collects system metrics using `psutil` / OpenHardwareMonitor and sends structured data
+- **Protocols:** Serial (USB) or Bluetooth communication
 
 ---
+
 ## 📷 Preview
 
 ![alt text](https://github.com/SweetSya/esp32-monitoring-pc/blob/main/preview.jpeg?raw=true)
