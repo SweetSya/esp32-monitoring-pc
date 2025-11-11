@@ -10,8 +10,25 @@ TFT_eSPI tft = TFT_eSPI(); // TFT instance
 #define COLOR_WHITE 0xFFFF // White
 #define BACKLIGHT_PIN 15   // D15 = GPIO15
 
+bool DEV = true; // Development mode
+
 int offsetTop = 0;
 int offsetLeft = 0;
+
+struct ScreenConfig
+{
+  int HORIZONTAL;
+  int VERTICAL;
+  int TEXT_VERTICAL_SHIFTING;
+  String LAYOUT; // horizontal - vertical - flip-horizontal - flip-vertical
+};
+struct GridLayout
+{
+  int COLS;
+};
+
+GridLayout Grid;
+ScreenConfig Screen;
 
 int SCREEN_HORIZONTAL_MAX = 480;
 int SCREEN_VERTICAL_MAX = 320;
@@ -123,7 +140,7 @@ void drawInfoBox(int x, int y, float col, int height, String title, String label
 void clear_screen()
 {
   offsetTop = 30;
-  tft.fillRect(offsetLeft, offsetTop, SCREEN_HORIZONTAL_MAX, SCREEN_VERTICAL_MAX, COLOR_DARK);
+  tft.fillRect(offsetLeft, offsetTop, Screen.HORIZONTAL, Screen.VERTICAL, COLOR_DARK);
 }
 
 void set_header(String title)
@@ -210,11 +227,22 @@ void parseData(String data)
   intTempTrack(gpuTemp, "gpu");
 }
 
+void drawHorizontal()
+{
+  drawInfoBox(offsetLeft, offsetTop, 0.49, 150, "CPU", cpuName, cpuUsage, cpuTemp, cpuMinTemp, cpuMaxTemp, TFT_GREEN, initiate);
+  drawInfoBox(offsetLeft + (SCREEN_HORIZONTAL_MAX / 2), offsetTop, 0.5, 150, "GPU", gpuName, gpuUsage, gpuTemp, gpuMinTemp, gpuMaxTemp, TFT_GREEN, initiate);
+}
+void drawVertical()
+{
+  drawInfoBox(offsetLeft, offsetTop, 1.0, 150, "CPU", cpuName, cpuUsage, cpuTemp, cpuMinTemp, cpuMaxTemp, TFT_GREEN, initiate);
+  offsetTop += 160;
+  drawInfoBox(offsetLeft, offsetTop, 1.0, 150, "GPU", gpuName, gpuUsage, gpuTemp, gpuMinTemp, gpuMaxTemp, TFT_GREEN, initiate);
+}
+
 void updateDisplay()
 {
   // tft.fillRect(0, 35, SCREEN_HORIZONTAL_MAX, SCREEN_VERTICAL_MAX - 35, COLOR_DARK);
   offsetLeft = 10;
-  SCREEN_HORIZONTAL_MAX = 460;
   offsetTop = 40;
 
   tft.setTextColor(COLOR_WHITE);
@@ -222,8 +250,14 @@ void updateDisplay()
   tft.print(mainboard);
 
   offsetTop += 30;
-  drawInfoBox(offsetLeft, offsetTop, 0.49, 150, "CPU", cpuName, cpuUsage, cpuTemp, cpuMinTemp, cpuMaxTemp, TFT_GREEN, initiate);
-  drawInfoBox(offsetLeft + (SCREEN_HORIZONTAL_MAX / 2), offsetTop, 0.5, 150, "GPU", gpuName, gpuUsage, gpuTemp, gpuMinTemp, gpuMaxTemp, TFT_GREEN, initiate);
+  if (Screen.LAYOUT.equals("horizontal") || Screen.LAYOUT.equals("flip-horizontal"))
+  {
+    drawHorizontal();
+  }
+  else if (Screen.LAYOUT.equals("vertical") || Screen.LAYOUT.equals("flip-vertical"))
+  {
+    drawVertical();
+  }
   if (initiate)
   {
     initiate = false;
@@ -251,6 +285,7 @@ int waiting_serial = 0;
 
 void setup()
 {
+  Screen.LAYOUT = "flip-vertical"; // horizontal - vertical - flip-horizontal - flip-vertical
   state = "initiating";
   Serial.begin(115200);
   delay(1000);
@@ -262,7 +297,39 @@ void setup()
   ledcWrite(1, 85);
 
   tft.init();
-  tft.setRotation(1); // Portrait
+
+  if (Screen.LAYOUT.equals("horizontal"))
+  {
+    Screen.HORIZONTAL = 480;
+    Screen.VERTICAL = 320;
+    Screen.TEXT_VERTICAL_SHIFTING = 0;
+    Grid.COLS = 2;
+    tft.setRotation(1);
+  }
+  if (Screen.LAYOUT.equals("vertical"))
+  {
+    Screen.HORIZONTAL = 320;
+    Screen.VERTICAL = 480;
+    Screen.TEXT_VERTICAL_SHIFTING = 0;
+    Grid.COLS = 1;
+    tft.setRotation(0);
+  }
+  if (Screen.LAYOUT.equals("flip-horizontal"))
+  {
+    Screen.HORIZONTAL = 480;
+    Screen.VERTICAL = 320;
+    Screen.TEXT_VERTICAL_SHIFTING = 0;
+    Grid.COLS = 2;
+    tft.setRotation(3);
+  }
+  if (Screen.LAYOUT.equals("flip-vertical"))
+  {
+    Screen.HORIZONTAL = 320;
+    Screen.VERTICAL = 480;
+    Screen.TEXT_VERTICAL_SHIFTING = 0;
+    Grid.COLS = 1;
+    tft.setRotation(2);
+  }
   clear_screen();
   set_header("Preparing device..");
   delay(2000);
@@ -274,9 +341,9 @@ void setup()
 
 void loop()
 {
-  SCREEN_HORIZONTAL_MAX = 480;
-  SCREEN_VERTICAL_MAX = 320;
-  TEXT_VERTICAL_SHIFTING = 0;
+  SCREEN_HORIZONTAL_MAX = Screen.HORIZONTAL - 20;
+  SCREEN_VERTICAL_MAX = Screen.VERTICAL;
+  TEXT_VERTICAL_SHIFTING = Screen.TEXT_VERTICAL_SHIFTING;
 
   waiting_serial += 1;
   if (Serial.available())
@@ -285,15 +352,6 @@ void loop()
     {
       state = "ready";
     }
-    // if (state != "sleep")
-    // {
-    //   state = "sleep";
-    //   clear_screen();
-    //   String message = "Sleep Mode..";
-    //   set_header(message);
-    //   drawIcon(SCREEN_HORIZONTAL_MAX / 2 - 130, SCREEN_VERTICAL_MAX / 2 - 80, epd_bitmap_cat_sleep, 256, 168, COLOR_WHITE);
-    //   ledcWrite(1, 85);
-    // }
     if (state != "wake" && state == "ready")
     {
       initiate = true;
@@ -324,6 +382,15 @@ void loop()
   if (waiting_serial > 2)
   {
     int turn_off_after = 5;
+    // if (state != "sleep")
+    // {
+    //   state = "sleep";
+    //   clear_screen();
+    //   String message = "Sleep Mode..";
+    //   set_header(message);
+    //   drawIcon(SCREEN_HORIZONTAL_MAX / 2 - 130, SCREEN_VERTICAL_MAX / 2 - 80, epd_bitmap_cat_sleep, 256, 168, COLOR_WHITE);
+    //   ledcWrite(1, 85);
+    // }
     if (waiting_serial > turn_off_after)
     {
       if (state != "offline")
@@ -356,5 +423,17 @@ void loop()
       set_header(message);
     }
   }
+  // if (DEV)
+  // {
+  //   if (state != "wake")
+  //   {
+  //     initiate = true;
+  //     state = "wake";
+  //     ledcWrite(1, 220);
+  //     clear_screen();
+  //     set_header("Monitoring");
+  //   }
+  //   updateDisplay();
+  // }
   delay(2000); // Smooth refresh
 }
